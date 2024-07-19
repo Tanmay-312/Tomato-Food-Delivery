@@ -6,7 +6,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
 // placing user order from frontend
 const placeOrder = async (req, res) => {
-
     const URL = process.env.URL;
     console.log(URL);
 
@@ -18,50 +17,71 @@ const placeOrder = async (req, res) => {
             address: req.body.address,
             discount: req.body.discount,
             delivery: req.body.delivery
-        })
-        await newOrder.save();
-        await userModel.findByIdAndUpdate(req.body.userId, {cartData:{}});
-
-        const line_item = req.body.items.map((item)=>({
-            price_data: {
-                currency: 'inr',
-                product_data: {
-                    name: item.name
-                },
-                unit_amount: item.price*100
-            },
-            quantity: item.quantity
-        }))
-
-        line_item.push({
-            price_data: {
-                currency: 'inr',
-                product_data: {
-                    name: 'Delivery Charges',
-                },
-                unit_amount: req.body.delivery*100
-            },
-            quantity: 1
-        })
-        
-        const discountCoupon = await stripe.coupons.create({
-            amount_off: req.body.discount * 100,
-            currency: 'inr',
-            duration: 'once',
         });
+        await newOrder.save();
+        await userModel.findByIdAndUpdate(req.body.userId, { cartData: {} });
+
+        // Validate `amount` and `delivery`
+        if (req.body.delivery < 0) {
+            return res.json({ success: false, message: "Invalid delivery charge" });
+        }
+
+        const line_item = req.body.items.map((item) => {
+            if (item.price <= 0 || item.quantity <= 0) {
+                throw new Error(`Invalid item data: ${item}`);
+            }
+            return {
+                price_data: {
+                    currency: 'inr',
+                    product_data: {
+                        name: item.name
+                    },
+                    unit_amount: item.price * 100
+                },
+                quantity: item.quantity
+            };
+        });
+
+        if (req.body.delivery > 0) {
+            line_item.push({
+                price_data: {
+                    currency: 'inr',
+                    product_data: {
+                        name: 'Delivery Charges',
+                    },
+                    unit_amount: req.body.delivery * 100
+                },
+                quantity: 1
+            });
+        }
+
+        // Handle discount
+        let discountCoupon = null;
+        if (req.body.discount > 0) {
+            try {
+                discountCoupon = await stripe.coupons.create({
+                    amount_off: req.body.discount * 100,
+                    currency: 'inr',
+                    duration: 'once',
+                });
+            } catch (error) {
+                console.error('Error creating coupon:', error);
+                return res.json({ success: false, message: 'Error creating discount coupon' });
+            }
+        }
 
         const session = await stripe.checkout.sessions.create({
             line_items: line_item,
             mode: 'payment',
-            discounts: [{ coupon: discountCoupon.id }],
+            discounts: discountCoupon ? [{ coupon: discountCoupon.id }] : [],
             success_url: `${URL}/verify?success=true&orderId=${newOrder._id}`,
             cancel_url: `${URL}/verify?success=false&orderId=${newOrder._id}`,
         });
 
-        res.json({success:true, session_url:session.url})
+        res.json({ success: true, session_url: session.url });
     } catch (error) {
-        console.log(error);
-        res.json({success:false, message:"Error"})
+        console.error('Error:', error);
+        res.json({ success: false, message: 'Error processing payment' });
     }
 }
 
