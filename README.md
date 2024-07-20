@@ -18,9 +18,9 @@ A complete MERN stack application for food delivery, featuring Stripe integratio
 
 ## Discount Coupons
 
-- `SAVE25`: 25% off
-- `SAVE50`: 50% off
-- `SAVE75`: 75% off
+- `SAVE25`: ₹25 off
+- `SAVE50`: ₹50 off
+- `SAVE75`: ₹75 off
 
 ## Deployment
 
