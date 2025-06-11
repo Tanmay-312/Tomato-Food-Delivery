@@ -67,7 +67,7 @@ The project is deployed online with the following URLs:
 
 4. **Set up environment variables**:
 
-   Create a `.env` file in the root of each directory (`backend`, `frontend`, `admin`) and add your environment variables. The `.env` file should be configured with the necessary variables for your project.
+Create a `.env` file in the root of each directory (`backend`, `frontend`, `admin`) and add your environment variables. The `.env` file should be configured with the necessary variables for your project.
 
 5. **Run the development servers**:
 
